@@ -1,0 +1,301 @@
+include::license.txt[]
+
+:language: C
+
+비동기 I/O에 대한 간단한 설명
+----------------------------------------
+
+대부분의 초보 프로그래머들은 Blocking I/O 호출로 프로그래밍을 시작합니다.
+
+호출 하였을 때 작업이 완료될 때 까지 반환 되지 않거나, 네트워크 스택이 응답을 포기할 만한 시간이 흐를 때 까지
+반환 되지 않을 경우, 이 I/O 호출을 _동기적(synchronous)_이라고 합니다.
+
+예를 들어, TCP 연결을 위해 "connect()"를 호출할 때
+여러분의 운영체제는 TCP 연결의 상대방 호스트에 SYN 패킷 하나를 쌓습니다(queue). 
+이 호출은 여러분의 운영체제가 상대 호스트로부터 SYN ACK 패킷 하나를 받거나
+충분한 시간이 흘러 받기를 포기할 때까지 어플리케이션으로 제어를 돌려주지 않습니다.
+
+다음은 blocking 네트워크 호출을 이용한 매우 간단한 클라이언트 예제입니다.
+예제는 www.google.com으로의 연결을 열어 간단한 HTTP request를 보낸 뒤,
+response를 표준 출력(stdout)으로 보내는 동작을 합니다.
+
+//BUILD: SKIP
+.Example: A simple blocking HTTP client
+[code,C]
+-------
+include::examples_01/01_sync_webclient.c[]
+-------
+
+위 코드에서 사용된 네트워크 호출은 모두 _Blocking_ I/O를 수행합니다.
+gethostbyname은 www.google.com을 IP로 분석하는데 성공하거나 실패할 때까지 반환되지 않습니다.
+connect는 호스트에 연결될 때까지 반환되지 않습니다.
+recv는 상대방 호스트로부터 데이터를 받거나 연결이 닫힐 때까지 반환되지 않습니다.
+send는 적어도 커널의 쓰기 버퍼(write buffers)에 출력을 flush하기 전까지는 반환되지 않습니다.
+
+자, Blocking I/O가 꼭 나쁜 것 만은 아닙니다.
+여러분의 프로그램이 동시에 수행할 다른 작업이 딱히 없다면
+Blocking I/O는 맡은 바 소임을 잘 해낼 것입니다.
+하지만 한번에 여러 연결을 처리해야 하는 프로그램을 만들어야 한다고 생각해봅시다.
+좀 더 명확한 예제를 위해 첨언하자면,
+두 개의 연결로 부터 입력을 읽고자 하는데 어떤 연결이 먼저 입력을 받을지 모른다고 합시다.
+아래와 같이 할 수는 없습니다.
+
+//BUILD: FUNCTIONBODY INC:../example_stubs/sec01.h
+.Bad Example
+[code,C]
+-------
+/* This won't work. */
+char buf[1024];
+int i, n;
+while (i_still_want_to_read()) {
+    for (i=0; i<n_sockets; ++i) {
+        n = recv(fd[i], buf, sizeof(buf), 0);
+        if (n==0)
+            handle_close(fd[i]);
+        else if (n<0)
+            handle_error(fd[i], errno);
+        else
+            handle_input(fd[i], buf, n);
+    }
+}
+-------
+
+그 이유는, 만약 데이터가 fd[2]에 먼저 도착한다면 여러분의 프로그램은
+fd[1]로부터 데이터를 받아 모두 읽을 때까지 fd[2]를 읽기 시작하는 것 조차 못할 것이기 때문입니다.
+
+때로는 멀티쓰레딩(multi-threading)이나 멀티프로세스(multi-process) 서버로
+이 문제를 해결하기도 합니다.
+멀티 스레딩을 수행하기 위한 가장 쉬운 방법 중 하나는
+개별 프로세스(혹은 쓰레드)가 각 연결을 담당하는 것입니다.
+각 연결을 담당하는 프로세스가 있기 때문에, 한 연결을 기다리는 Blocking I/O 호출이
+다른 연결의 프로세스를 block 시키지 않을 것입니다.
+
+다음은 또 다른 예제 프로그램입니다. 이 프로그램은 일반적인 서버로서 47013 포트를 열어
+TCP 연결을 기다리는데(listen), 한번에 한 줄의 입력을 읽어(read) ROT13 암호화를 한 뒤
+상대방 호스트에 씁니다(write). 이 프로그램은 들어오는 각 연결을 위해 새로운 프로세스를 생성하는데,
+Unix의 fork() 호출을 사용합니다.
+
+//BUILD: SKIP
+.Example: Forking ROT13 server
+[code,C]
+-------
+include::examples_01/01_rot13_server_forking.c[]
+-------
+
+그렇다면, 한번에 여러 연결을 처리하기 위한 완벽한 해결책이 나온건가요?
+그럼 이제 이 책은 그만 쓰고 다른 걸 하러 가도 괜찮을까요?
+
+꼭 그렇진 않습니다.
+
+우선, 플랫폼에 따라 프로세스 생성(그리고 쓰레드 조차)에 많은 비용이 들 수 있습니다.
+실제 환경에서는 새로운 프로세스를 생성하는 것 보다는 스레드 풀(thread pool)을 사용하려 할 테지만,
+좀 더 기본적인 내용을 보자면, 쓰레드는 여러분이 원하는 만큼 확장(scale)되지 못합니다.
+만약 여러분의 프로그램이 수천 개 혹은 수만 개의 연결을 동시에 처리해야 한다면,
+수만 개의 쓰레드를 처리하는 일이 CPU당 몇 개의 쓰레드가 있을 때만큼 효율적이지는 않을 것입니다.
+
+하지만 쓰레드를 이용한 방식이 정답이 아니라면, 여러 연결을 처리하기 위해 무엇을 사용해야 할까요?
+유닉스의 전통을 따르자면, 여러분의 소켓을 _nonblocking_으로 만들 수 있습니다.
+이를 위한 유닉스 호출은 다음과 같습니다.
+[code,C]
+------
+fcntl(fd, F_SETFL, O_NONBLOCK);
+------
+fd는 소켓을 위한 파일 기술자(file descriptor)입니다.  footnote:[파일 기술자(file descriptor)란
+여러분이 소켓을 열었을 때 그 소켓에 커널이 할당한 번호를 뜻합니다. 이 번호는 Unix 호출에 해당 소켓을 참조시킬 때 사용됩니다.]
+일단 fd(소켓)를 nonblocking으로 만들었다면, 그 때부터 fd로 네트워크 호출을 할 때마다 해당 작업을 바로 완료시키거나
+"지금은 더 이상 작업을 진행할 수 없습니다. 다시 시도하세요."라는 의미의 특별한 에러 코드를 반환할 것입니다.
+따라서 앞서 본 두 개의 소켓을 이용한 예제는 다음과 같이 만들 수 있을 것입니다.
+
+//BUILD: FUNCTIONBODY INC:../example_stubs/sec01.h
+.Bad Example: busy-polling all sockets
+[code,C]
+------
+/* This will work, but the performance will be unforgivably bad. */
+int i, n;
+char buf[1024];
+for (i=0; i < n_sockets; ++i)
+    fcntl(fd[i], F_SETFL, O_NONBLOCK);
+
+while (i_still_want_to_read()) {
+    for (i=0; i < n_sockets; ++i) {
+        n = recv(fd[i], buf, sizeof(buf), 0);
+        if (n == 0) {
+            handle_close(fd[i]);
+        } else if (n < 0) {
+            if (errno == EAGAIN)
+                 ; /* The kernel didn't have any data for us to read. */
+            else
+                 handle_error(fd[i], errno);
+         } else {
+            handle_input(fd[i], buf, n);
+         }
+    }
+}
+------
+
+Now that we're using nonblocking sockets, the code above would
+_work_... but only barely.  The performance will be awful, for two
+reasons.  First, when there is no data to read on either connection
+the loop will spin indefinitely, using up all your CPU cycles.
+Second, if you try to handle more than one or two connections with
+this approach you'll do a kernel call for each one, whether it has
+any data for you or not.  So what we need is a way to tell the kernel
+"wait until one of these sockets is ready to give me some data, and
+tell me which ones are ready."
+
+The oldest solution that people still use for this problem is
+select().  The select() call takes three sets of fds (implemented as
+bit arrays): one for reading, one for writing, and one for
+"exceptions".  It waits until a socket from one of the sets is ready
+and alters the sets to contain only the sockets ready for use.
+
+Here is our read() example again, using select:
+
+//BUILD: FUNCTIONBODY INC:../example_stubs/sec01.h
+.Example: Using select
+[code,C]
+------
+/* If you only have a couple dozen fds, this version won't be awful */
+fd_set readset;
+int i, n;
+char buf[1024];
+
+while (i_still_want_to_read()) {
+    int maxfd = -1;
+    FD_ZERO(&readset);
+
+    /* Add all of the interesting fds to readset */
+    for (i=0; i < n_sockets; ++i) {
+         if (fd[i]>maxfd) maxfd = fd[i];
+         FD_SET(i, &readset);
+    }
+
+    /* Wait until one or more fds are ready to read */
+    select(maxfd+1, &readset, NULL, NULL, NULL);
+
+    /* Process all of the fds that are still set in readset */
+    for (i=0; i < n_sockets; ++i) {
+        if (FD_ISSET(fd[i], &readset)) {
+            n = recv(fd[i], buf, sizeof(buf), 0);
+            if (n == 0) {
+                handle_close(fd[i]);
+            } else if (n < 0) {
+                if (errno == EAGAIN)
+                     ; /* The kernel didn't have any data for us to read. */
+                else
+                     handle_error(fd[i], errno);
+             } else {
+                handle_input(fd[i], buf, n);
+             }
+        }
+    }
+}
+------
+
+
+And here's a reimplementation of our ROT13 server, using select() this
+time.
+
+//BUILD: SKIP
+.Example: select()-based ROT13 server
+[code,C]
+------
+include::examples_01/01_rot13_server_select.c[]
+------
+
+But we're still not done.  Because generating and reading the select()
+bit arrays takes time proportional to the largest fd that you provided
+for select(), the select() call scales terribly when the number of
+sockets is high.  footnote:[On the userspace side, generating and
+reading the bit arrays takes time proportional to the number of fds
+that you provided for select().  But on the kernel side, reading the
+bit arrays takes time proportional to the largest fd in the bit array,
+which tends to be around _the total number of fds in use in the whole
+program_, regardless of how many fds are added to the sets in
+select().]
+
+Different operating systems have provided different replacement
+functions for select.  These include poll(), epoll(), kqueue(),
+evports, and /dev/poll.  All of these give better performance than
+select(), and all but poll() give O(1) performance for adding a socket
+to one of the three sets, removing a socket, and for noticing
+that a socket in one of the three sets is ready for IO.
+
+Unfortunately, none of the efficient interfaces is a ubiquitous
+standard.  Linux has epoll(), the BSDs (including Darwin) have
+kqueue(), Solaris has evports and /dev/poll... _and none of these
+operating systems has any of the others_.  So if you want to write a
+portable high-performance asynchronous application, you'll need an
+abstraction that wraps all of these interfaces, and provides whichever
+one of them is the most efficient.
+
+And that's what the lowest level of the Libevent API does for you.  It
+provides a consistent interface to various select() replacements,
+using the most efficient version available on the computer where it's
+running.
+
+Here's yet another version of our asynchronous ROT13 server.  This
+time, it uses Libevent 2 instead of select().  Note that the fd_sets
+are gone now: instead, we associate and disassociate events with a
+struct event_base, which might be implemented in terms of select(),
+poll(), epoll(), kqueue(), etc.
+
+//BUILD: SKIP
+.Example: A low-level ROT13 server with Libevent
+[code,C]
+-------
+include::examples_01/01_rot13_server_libevent.c[]
+-------
+
+(Other things to note in the code: instead of typing the sockets as
+"int", we're using the type evutil_fd_t.  Instead of calling
+fcntl(O_NONBLOCK) to make the sockets nonblocking, we're calling
+evutil_make_socket_nonblocking.  These changes make our code compatible
+with the divergent parts of the Win32 networking API.)
+
+
+What about convenience?  (and what about Windows?)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+You've probably noticed that as our code has gotten more efficient,
+it has also gotten more complex.  Back when we were forking, we didn't
+have to manage a buffer for each connection: we just had a separate
+stack-allocated buffer for each process.  We didn't need to explicitly
+track whether each socket was reading or writing: that was implicit in
+our location in the code.  And we didn't need a structure to track how
+much of each operation had completed: we just used loops and stack
+variables.
+
+Moreover, if you're deeply experienced with networking on Windows,
+you'll realize that Libevent probably isn't getting optimal
+performance when it's used as in the example above.  On Windows, the
+way you do fast asynchronous IO is not with a select()-like interface:
+it's by using the IOCP (IO Completion Ports) API.  Unlike all the
+fast networking APIs, IOCP does not alert your program when a socket
+is _ready_ for an operation that your program then has to perform.
+Instead, the program tells the Windows networking stack to _start_ a
+network operation, and IOCP tells the program when the operation has
+finished.
+
+Fortunately, the Libevent 2 "bufferevents" interface solves both of
+these issues: it makes programs much simpler to write, and provides
+an interface that Libevent can implement efficiently on Windows _and_
+on Unix.
+
+Here's our ROT13 server one last time, using the bufferevents API.
+
+//BUILD: SKIP
+.Example: A simpler ROT13 server with Libevent
+[code,C]
+-------
+include::examples_01/01_rot13_server_bufferevent.c[]
+-------
+
+How efficient is all of this, really?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+XXXX write an efficiency section here.  The benchmarks on the libevent
+page are really out of date.
+
+
+
