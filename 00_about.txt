@@ -2,19 +2,20 @@ include::license.txt[]
 
 :language: C
 
-º» ¹®¼­¿¡ ´ëÇÏ¿©
+ë³¸ ë¬¸ì„œì— ëŒ€í•˜ì—¬
 -------------------
 
-º» ¹®¼­¿¡¼­´Â ¿©·¯ºÐÀÌ Libevent 2.0À» »ç¿ëÇÏ¿©
-C ¾ð¾î·Î ºü¸£°í ÀÌ½Ä¼º ÀÖ´Â ºñµ¿±â ³×Æ®¿öÅ© I/O ÇÁ·Î±×·¥À» ¸¸µå´Â ¹ýÀ» ¾Ë·Á µå¸± °ÍÀÔ´Ï´Ù.
+ë³¸ ë¬¸ì„œì—ì„œëŠ” ì—¬ëŸ¬ë¶„ì´ Libevent 2.0ì„ ì‚¬ìš©í•˜ì—¬
+C ì–¸ì–´ë¡œ ë¹ ë¥´ê³  ì´ì‹ì„± ìžˆëŠ” ë¹„ë™ê¸° ë„¤íŠ¸ì›Œí¬ I/O í”„ë¡œê·¸ëž¨ì„ ë§Œë“œëŠ” ë²•ì„ ì•Œë ¤ ë“œë¦´ ê²ƒìž…ë‹ˆë‹¤.
 
-ÀúÈñ´Â µ¶ÀÚµéÀÌ ¾Æ·¡¿Í °°Àº Áö½ÄÀ» ÀÌ¹Ì °®Ãß°í ÀÖÀ½À» °¡Á¤ÇÏ¿´½À´Ï´Ù.
-* C ¾ð¾î
-* socket(), connect() µîÀÇ ±âº»ÀûÀÎ C ¾ð¾î ³×Æ®¿öÅ· ÇÔ¼ö
+ì €í¬ëŠ” ë…ìžë“¤ì´ ì•„ëž˜ì™€ ê°™ì€ ì§€ì‹ì„ ì´ë¯¸ ê°–ì¶”ê³  ìžˆìŒì„ ê°€ì •í•˜ì˜€ìŠµë‹ˆë‹¤.
+* C ì–¸ì–´
+* socket(), connect() ë“±ì˜ ê¸°ë³¸ì ì¸ C ì–¸ì–´ ë„¤íŠ¸ì›Œí‚¹ í•¨ìˆ˜
 
-¿¹Á¦¿¡ ´ëÇÏ¿©
+ì˜ˆì œì— ëŒ€í•˜ì—¬
 ------------------
 
-º» ¹®¼­ÀÇ ¿¹Á¦µéÀº Linux, FreeBSD, OpenBSD, NetBSD, Mac OS X, Solaris, Android È¯°æ¿¡¼­
-Á¦´ë·Î µ¿ÀÛÇØ¾ß ÇÕ´Ï´Ù.
-ÀÏºÎ ¿¹Á¦´Â Windows È¯°æ¿¡¼­ ÄÄÆÄÀÏ µÇÁö ¾ÊÀ» ¼ö ÀÖ½À´Ï´Ù.
+ë³¸ ë¬¸ì„œì˜ ì˜ˆì œë“¤ì€ Linux, FreeBSD, OpenBSD, NetBSD, Mac OS X, Solaris, Android í™˜ê²½ì—ì„œ
+ì œëŒ€ë¡œ ë™ìž‘í•´ì•¼ í•©ë‹ˆë‹¤.
+ì¼ë¶€ ì˜ˆì œëŠ” Windows í™˜ê²½ì—ì„œ ì»´íŒŒì¼ ë˜ì§€ ì•Šì„ ìˆ˜ ìžˆìŠµë‹ˆë‹¤.
+
