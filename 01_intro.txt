@@ -133,23 +133,21 @@ while (i_still_want_to_read()) {
 }
 ------
 
-Now that we're using nonblocking sockets, the code above would
-_work_... but only barely.  The performance will be awful, for two
-reasons.  First, when there is no data to read on either connection
-the loop will spin indefinitely, using up all your CPU cycles.
-Second, if you try to handle more than one or two connections with
-this approach you'll do a kernel call for each one, whether it has
-any data for you or not.  So what we need is a way to tell the kernel
-"wait until one of these sockets is ready to give me some data, and
-tell me which ones are ready."
+이제 nonblocking 소켓을 사용하게 되었으니 위 코드는 _동작_하긴 하지만, 간신히 돌아갑니다.
+성능이 형편 없을 텐데, 두 가지 이유가 있습니다.
+첫째, 두 개의 연결 중 하나에 읽을 데이터가 없다면 모든 CPU 사이클을 사용하며 무한 루프에 빠질 것입니다.
+둘째, 이 방식으로 한두 개 이상의 연결을 처리하려고 한다면
+들어온 데이터가 있던 없던 각 연결에 대한 커널 호출을 하게 됩니다.
+그럼 어떻게 해야 커널에게 "이 소켓들이 데이터를 줄 준비가 될 때까지 기다리고, 준비가 되었다면 알려달라"고
+할 수 있을까요?
 
-The oldest solution that people still use for this problem is
-select().  The select() call takes three sets of fds (implemented as
-bit arrays): one for reading, one for writing, and one for
-"exceptions".  It waits until a socket from one of the sets is ready
-and alters the sets to contain only the sockets ready for use.
+이 문제를 풀기 위해 사람들이 아직도 사용하는 가장 오래된 해결책은 select()입니다.
+select()는 3개의 fds 집합(bit 배열)을 인자로 받습니다.
+각각은 읽기(reading), 쓰기(writing), 예외(exceptions)를 위한 fd 배열 입니다.
+select()는 이 배열 중 하나가 준비될 때까지 기다렸다가 이 배열에 사용 준비가 된 소켓만
+남도록 변경해줍니다.
 
-Here is our read() example again, using select:
+아래는 select()를 이용한 read() 예제입니다.
 
 //BUILD: FUNCTIONBODY INC:../example_stubs/sec01.h
 .Example: Using select
@@ -193,8 +191,7 @@ while (i_still_want_to_read()) {
 ------
 
 
-And here's a reimplementation of our ROT13 server, using select() this
-time.
+그리고 이번에는 앞서 보았던 ROT13 서버를 select()를 이용하여 다시 구현한 예제입니다.
 
 //BUILD: SKIP
 .Example: select()-based ROT13 server
@@ -203,23 +200,19 @@ time.
 include::examples_01/01_rot13_server_select.c[]
 ------
 
-But we're still not done.  Because generating and reading the select()
-bit arrays takes time proportional to the largest fd that you provided
-for select(), the select() call scales terribly when the number of
-sockets is high.  footnote:[On the userspace side, generating and
-reading the bit arrays takes time proportional to the number of fds
-that you provided for select().  But on the kernel side, reading the
-bit arrays takes time proportional to the largest fd in the bit array,
-which tends to be around _the total number of fds in use in the whole
-program_, regardless of how many fds are added to the sets in
-select().]
+하지만 아직 끝난게 아닙니다. select()에서 사용하는 bit 배열을 생성하고 읽기 위해
+가장 큰 fd에 비례한 시간이 걸리기 때문에, 소켓 개수가 많아 질수록 select() 호출 성능이
+끔찍할 정도로 느려지게 됩니다.  footnote:[프로그래머 입장에서는 bit 배열 생성과 읽는데 걸리는 시간이 
+select() 호출 시 제공한 fd 개수에 비례한다. 하지만 커널 입장에서는 bit 배열을 읽는데 걸리는 시간이 
+bit 배열에 존재하는 가장 큰 fd에 비례한 시간이 걸리게 된다.
+이는 select()에 넘겨준 fd 배열의 크기와는 상관 없이, _전체 프로그램에서 사용되는 fd의 총 개수_에 가깝다.]
 
-Different operating systems have provided different replacement
-functions for select.  These include poll(), epoll(), kqueue(),
-evports, and /dev/poll.  All of these give better performance than
-select(), and all but poll() give O(1) performance for adding a socket
-to one of the three sets, removing a socket, and for noticing
-that a socket in one of the three sets is ready for IO.
+운영체제에 따라 select를 대체할 수 있는 함수를 제공하기도 한다.
+poll(), epoll(), kqueue(), evports, /dev/poll 등이 그것인데,
+모두 select() 보다 좋은 성능을 제공한다. 그리고 poll()을 제외하면
+세 개의 fd 배열 중 하나에 소켓을 추가, 소켓 하나를 삭제, 세 개의 fd 배열 중 I/O를 수행할 준비가 된
+소켓 하나를 알려 주는 데 모두 O(1)에 해당하는 성능을 제공한다.
+
 
 Unfortunately, none of the efficient interfaces is a ubiquitous
 standard.  Linux has epoll(), the BSDs (including Darwin) have
