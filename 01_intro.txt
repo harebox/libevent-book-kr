@@ -239,42 +239,43 @@ Libevent의 저수준 API는 다양한 select() 대체 인터페이스 중
 include::examples_01/01_rot13_server_libevent.c[]
 -------
 
-(Other things to note in the code: instead of typing the sockets as
-"int", we're using the type evutil_fd_t.  Instead of calling
-fcntl(O_NONBLOCK) to make the sockets nonblocking, we're calling
-evutil_make_socket_nonblocking.  These changes make our code compatible
-with the divergent parts of the Win32 networking API.)
-
+(코드에서 확인해 두어야 할 것들 : 소켓 타입을 "int"가 아닌 evutil_fd_t를 사용하였다.
+소켓을 nonblocking으로 만들기 위해 fcntl(O_NONBLOCK) 대신 evutil_make_socket_nonblocking을 호출하였다.
+이렇게 함으로써 우리 코드가 Unix API와 Win32 네트워킹 API가 달라지는 부분에서도 호환되게 하였다.)
 
 What about convenience?  (and what about Windows?)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-You've probably noticed that as our code has gotten more efficient,
-it has also gotten more complex.  Back when we were forking, we didn't
-have to manage a buffer for each connection: we just had a separate
-stack-allocated buffer for each process.  We didn't need to explicitly
-track whether each socket was reading or writing: that was implicit in
-our location in the code.  And we didn't need a structure to track how
-much of each operation had completed: we just used loops and stack
-variables.
+아마도 여러분은 우리 코드가 좀 더 효율적으로 변했고,
+동시에 좀 더 복잡해졌음을 알아차리셨을 겁니다.
 
-Moreover, if you're deeply experienced with networking on Windows,
-you'll realize that Libevent probably isn't getting optimal
-performance when it's used as in the example above.  On Windows, the
-way you do fast asynchronous IO is not with a select()-like interface:
-it's by using the IOCP (IO Completion Ports) API.  Unlike all the
-fast networking APIs, IOCP does not alert your program when a socket
-is _ready_ for an operation that your program then has to perform.
-Instead, the program tells the Windows networking stack to _start_ a
-network operation, and IOCP tells the program when the operation has
-finished.
+프로세스를 forking 하던 때로 돌아가면,
 
-Fortunately, the Libevent 2 "bufferevents" interface solves both of
-these issues: it makes programs much simpler to write, and provides
-an interface that Libevent can implement efficiently on Windows _and_
-on Unix.
+우린 각 연결에 대한 버퍼를 관리할 필요가 없었습니다 : 
+각 프로세스에는 각각 분리되어 스택이 할당된 버퍼가 있었으니까요.
 
-Here's our ROT13 server one last time, using the bufferevents API.
+각 소켓이 읽기 상태인지, 쓰기 상태인지 명시적으로 매번 확인(track)할 필요도 없었습니다 :
+코드 흐름에 따라 암묵적으로 그렇게 되고 있었으니까요.
+
+또한 얼마나 많은 작업이 완료 되었는지 확인하기 위한 구조체도 필요 없었습니다 :
+그냥 루프와 스택 변수를 사용하면 되었으니까요.
+
+게다가, 여러분이 Windows 상의 네트워킹에 깊은 경험이 있다면
+앞서 살펴 보았던 예제들에서 Libevent가 최적의 성능을 보이지 못할지도 모른다는 사실을
+알아차리게 될 것입니다.
+Windows에서는 고속 비동기 IO를 위한 방식이 select() 같은 인터페이스가 아니라
+IOCP(IO Completion Ports) API를 사용하는 것입니다.
+다른 모든 고속 네트워킹 API와 달리,
+IOCP는 프로그램에서 수행해야 할 작업에 쓰일 소켓이 _준비(ready)_ 되었을 때
+프로그램으로 알림(alert)을 주지 않습니다.
+대신, 프로그램은 Windows 네트워크 스택에 네트워크 작업을 _시작(start)_하라고 말하고
+나중에 그 작업이 완료 되었을 때 IOCP가 프로그램에게 그 사실을 알려 줍니다.
+
+다행히도 Libevent 2의 "bufferevents" 인터페이스로 위의 두가지 이슈를 해결할 수 있습니다.
+이를 통해 프로그램을 작성하기 훨씬 간단해지고,
+Libevent가 Windows, _그리고_ Unix 환경에서 효율적인 구현을 할 수 있도록 하는 인터페이스를 제공합니다. 
+
+아래는 bufferevents API를 이용한 마지막 ROT13 서버입니다.
 
 //BUILD: SKIP
 .Example: A simpler ROT13 server with Libevent
@@ -284,6 +285,7 @@ include::examples_01/01_rot13_server_bufferevent.c[]
 -------
 
 How efficient is all of this, really?
+이 모든게 얼마나 효과적입니까? 안그래요?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 XXXX write an efficiency section here.  The benchmarks on the libevent
