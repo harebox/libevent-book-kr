@@ -203,35 +203,34 @@ include::examples_01/01_rot13_server_select.c[]
 하지만 아직 끝난게 아닙니다. select()에서 사용하는 bit 배열을 생성하고 읽기 위해
 가장 큰 fd에 비례한 시간이 걸리기 때문에, 소켓 개수가 많아 질수록 select() 호출 성능이
 끔찍할 정도로 느려지게 됩니다.  footnote:[프로그래머 입장에서는 bit 배열 생성과 읽는데 걸리는 시간이 
-select() 호출 시 제공한 fd 개수에 비례한다. 하지만 커널 입장에서는 bit 배열을 읽는데 걸리는 시간이 
-bit 배열에 존재하는 가장 큰 fd에 비례한 시간이 걸리게 된다.
-이는 select()에 넘겨준 fd 배열의 크기와는 상관 없이, _전체 프로그램에서 사용되는 fd의 총 개수_에 가깝다.]
+select() 호출 시 제공한 fd 개수에 비례합니다. 하지만 커널 입장에서는 bit 배열을 읽는데 걸리는 시간이 
+bit 배열에 존재하는 가장 큰 fd에 비례한 시간이 걸리게 되지요.
+이는 select()에 넘겨준 fd 배열의 크기와는 상관 없이, _전체 프로그램에서 사용되는 fd의 총 개수_에 가깝기 때문입니다.]
 
-운영체제에 따라 select를 대체할 수 있는 함수를 제공하기도 한다.
+운영체제에 따라 select를 대체할 수 있는 함수를 제공하기도 합니다.
 poll(), epoll(), kqueue(), evports, /dev/poll 등이 그것인데,
-모두 select() 보다 좋은 성능을 제공한다. 그리고 poll()을 제외하면
+모두 select() 보다 좋은 성능을 제공합니다. 그리고 poll()을 제외하면
 세 개의 fd 배열 중 하나에 소켓을 추가, 소켓 하나를 삭제, 세 개의 fd 배열 중 I/O를 수행할 준비가 된
-소켓 하나를 알려 주는 데 모두 O(1)에 해당하는 성능을 제공한다.
+소켓 하나를 알려 주는 데 모두 O(1)에 해당하는 성능을 제공합니다.
 
+불행히도 성능 좋은 인터페이스 중 어떤 것도 통일된 표준이 아닙니다.
+Linux는 epoll(), Darwin을 포함한 BSD Unix 계열은 kqueue(),
+Solaris는 evports와 /dev/poll을 제공합니다.
+_그리고 각 운영체제는 다른 계열의 운영체제가 제공하는 인테페이스를 제공하지 않습니다_.
+이 때문에 이식성 있는 고성능 비동기 어플리케이션을 작성하고자 한다면,
+이러한 인터페이스 모두를 wrapping 하면서 각각이 최고의 효율을
+낼 수 있도록 하는 추상화가 필요합니다.
 
-Unfortunately, none of the efficient interfaces is a ubiquitous
-standard.  Linux has epoll(), the BSDs (including Darwin) have
-kqueue(), Solaris has evports and /dev/poll... _and none of these
-operating systems has any of the others_.  So if you want to write a
-portable high-performance asynchronous application, you'll need an
-abstraction that wraps all of these interfaces, and provides whichever
-one of them is the most efficient.
+그리고 이것이 바로 Libevent의 저수준 API가 제공하는 것입니다.
+Libevent의 저수준 API는 다양한 select() 대체 인터페이스 중 
+현재 동작하는 컴퓨터에서 사용 가능한 가장 효율적인 버전을 사용하면서
+일관된 인터페이스를 제공합니다.
 
-And that's what the lowest level of the Libevent API does for you.  It
-provides a consistent interface to various select() replacements,
-using the most efficient version available on the computer where it's
-running.
-
-Here's yet another version of our asynchronous ROT13 server.  This
-time, it uses Libevent 2 instead of select().  Note that the fd_sets
-are gone now: instead, we associate and disassociate events with a
-struct event_base, which might be implemented in terms of select(),
-poll(), epoll(), kqueue(), etc.
+다음은 비동기식 ROT13 서버의 계속된 또다른 버전입니다.
+이번에는 select() 대신 Libevent 2를 사용하게 됩니다.
+이제 fd 배열이 사라졌음을 확인해주세요. 대신, 우리는 event_base 구조체를 통해
+이벤트를 등록/삭제합니다.
+이들은 select(), poll(), epoll(), kqueue() 등으로 구현될 수도 있습니다.
 
 //BUILD: SKIP
 .Example: A low-level ROT13 server with Libevent
