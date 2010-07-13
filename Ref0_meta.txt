@@ -9,7 +9,7 @@ Libevent 레퍼런스 메뉴얼: 서언
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Libevent는 빠르고 이식성 있는 nonblocking I/O 프로그램을 작성하기 위한 라이브러리입니다.
-디자인 목표는 다음과 같습니다 :
+디자인 목표는 다음과 같습니다.
 
 이식성(Portability)::
 	Libevent를 사용하여 작성된 프로그램은 Libevent가 지원하는 모든 플랫폼에서 동작해야 합니다.
@@ -70,54 +70,48 @@ evrpc::
 라이브러리
 ~~~~~~~~~~~~~
 
-When Libevent is built, by default it installs the following
-libraries:
+Libevent가 빌드되면 기본적으로 다음과 같은 라이브러리들이 설치됩니다.
 
 libevent_core::
-    All core event and buffer functionality.  This
-    library contains all the event_base, evbuffer, bufferevent,
-    and utility functions.
+	모든 핵심 이벤트와 버퍼 기능들이 있습니다.
+	이 라이브러리는 event_base, evbuffer, bufferevent 및 유틸리티 함수들을 모두 포함합니다.
 
 libevent_extra::
-    This library defines protocol-specific functionality that
-    you may or may not want for your application, including HTTP, DNS,
-    and RPC.
+	이 라이브러리는 프로그램에 선택적으로 포함시킬 수 있는
+	프로토콜에 특화된 기능을 정의합니다. HTTP, DNS, RPC를 포함합니다.
 
 libevent::
-    This library exists for historical reasons; it contains the
-    contents of both libevent_core and libevent_extra.  You shouldn't
-    use it; it may go away in a future version of Libevent.
+	이 라이브러리는 하위 호환성을 위해(historical reasons) 존재하며
+	libevent_core, libevent_extra 라이브러리의 내용이 둘 다 포함되어 있습니다.
+	여러분은 이 라이브러리를 사용하면 안되며 Libevent 차기 버전에서는 사라질 수도 있습니다.
 
-The following libraries are installed only on some platforms:
+다음 라이브러리들은 특정 플랫폼에서만 설치됩니다.
 
 libevent_pthreads::
-    This library adds threading and locking implementations based on
-    the pthreads portable threading library.  It is separated from
-    libevent_core so that you don't need to link against pthreads
-    to use Libevent unless you are _actually_ using Libevent in a
-    multithreaded way.
+	이 라이브러리는 이식성 있는 쓰레딩 라이브러리인 pthreads에 기반한
+	쓰레딩과 locking 구현을 추가합니다.
+	이 구현은 libevent_core와 분리되어 있는데, 그 이유는 Libevent를
+	_실제로_ 멀티쓰레딩 방식으로 사용하지 않는 이상 pthreads를 링크할 필요가 없기 때문입니다.
 
 libevent_openssl::
-    This library provides support for encrypted communications using
-    bufferevents and the OpenSSL library.  It is separated from
-    libevent_core so that you don't need to link against OpenSSL
-    to use Libevent unless you are _actually_ using encrypted
-    connections.
+	이 라이브러리는 bufferevents와 OpenSSL 라이브러리를 사용하여
+	암호화된 통신 지원을 제공합니다. 이 구현이 libevent_core와 분리되어 있는 이유는
+	_실제로_ 암호화된 연결을 사용하지 않을 경우 Libevent를 사용하기 위해
+	OpenSSL 라이브러리를 함께 링크하지 않도록 하기 위해서입니다.
 
-The Headers
+헤더
 ~~~~~~~~~~~
 
-All current public Libevent headers are installed under the 'event2'
-directory.  Headers fall into three broad classes:
+현재 Libevent 헤더파일(public headers)은 모두 'event2' 디렉토리에 설치됩니다.
+헤더 파일은 크게 세 종류로 나뉩니다.
 
 API headers::
-    An API header is one that defines current public interfaces to
-    Libevent.  These headers have no special suffix.
+	API 헤더들은 Libevent를 사용하기 위한 현재 공개된 인터페이스를 정의합니다.
+	API 헤더에는 특별한 접미사 규칙이 없습니다.
 
 Compatibility headers::
-    A compatibility header includes definitions for deprecated
-    functions.  You shouldn't include it unless you're porting a
-    program from an older version of Libevent.
+	호환성 헤더에는 더 이상 쓰이지 않는(deprecated) 함수 정의가 포함되어 있습니다.
+	구 버전의 Libevent를 사용하는 프로그램을 포팅하지 않는 이상 include 하지 마세요.
 
 Structure headers::
     These headers define structures with relatively volatile layouts.
@@ -127,12 +121,17 @@ Structure headers::
     your program's binary compatibility with other versions of
     Libevent, sometimes in hard-to-debug ways.  These headers have the
     suffix "_struct.h"
+	이 범주에 속하는 헤더들은 상대적으로 모습이 자주 변하는 구조체들을 정의합니다.
+	몇몇은 구조체 컴포넌트에 대한 빠른 접근이 필요할 경우를 위해 노출되며
+	어떤 것들은 하위 호환성을 위해 노출되어 있습니다.
+	이러한 헤더에 있는 구조체중 어떤 것이라도 직접적으로 사용하면
+	여러분의 프로그램과 다른 버전의 Libevent와의 바이너리 호환성이 깨지게 됩니다(때로는 디버깅 하기 어려운 방식으로).
+	이러한 헤더들은 "_struct.h"를 접미사로 가집니다.
+	
+('event2' 디렉토리에 없는 이전 버전의 Libevent 헤더들이 있습니다.
+아래의 "이전 버전의 Libevent를 함께 사용하여 작업해야 한다면" 부분을 보세요.)
 
-(There are also older versions of the Libevent headers without the
-'event2' directory.  See "If you have to work with an old version of
-Libevent" below.)
-
-If you have to work with an old version of Libevent
+이전 버전의 Libevent를 함께 사용하여 작업해야 한다면
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Libevent 2.0 has revised its APIs to be generally more rational and
